@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>スコア集計</title>
+<style>
+  :root{--main:#1565c0;--bg:#f4f6fa;--card:#fff;--line:#dde3ec;--warn:#e65100;--ok:#2e7d32;--gold:#c9a227;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;background:var(--bg);color:#222;font-size:16px}
+  #top{position:sticky;top:0;z-index:10}
+  header{background:var(--main);color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  header h1{font-size:17px;margin:0}
+  #conn{font-size:12px;opacity:.9}
+  #lockBtn{background:none;border:1px solid #fff8;color:#fff;border-radius:6px;font-size:12px;padding:4px 8px;white-space:nowrap}
+  nav{display:flex;background:#fff;border-bottom:1px solid var(--line)}
+  nav button{flex:1;padding:12px 0;border:none;background:none;font-size:15px;color:#555;border-bottom:3px solid transparent}
+  nav button.on{color:var(--main);border-bottom-color:var(--main);font-weight:bold}
+  main{padding:10px;max-width:640px;margin:0 auto}
+  .card{background:var(--card);border-radius:10px;padding:10px 12px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .card h3{margin:0 0 6px;font-size:16px;display:flex;justify-content:space-between;align-items:center}
+  .row{display:grid;grid-template-columns:1fr 64px 64px 52px;gap:6px;align-items:center;padding:5px 0;border-top:1px solid var(--line)}
+  .row.head{border-top:none;font-size:12px;color:#777;padding:0}
+  .row.absent .nm{color:#aaa;text-decoration:line-through}
+  .row.absent input[type=number]{background:#eee}
+  input[type=number],input[type=text],input[type=password]{width:100%;padding:8px 6px;font-size:17px;border:1px solid #bbb;border-radius:6px;text-align:center}
+  input[type=text]{text-align:left}
+  input.bad{border-color:red;background:#ffecec}
+  .abs{font-size:12px;padding:6px 0;border-radius:6px;border:1px solid #bbb;background:#fff}
+  .abs.on{background:#757575;color:#fff;border-color:#757575}
+  .muted{color:#777;font-size:12px}
+  .btn{padding:8px 12px;border-radius:6px;border:1px solid var(--main);background:var(--main);color:#fff;font-size:14px}
+  .btn.sub{background:#fff;color:var(--main)}
+  .btn.danger{background:#fff;color:#c62828;border-color:#c62828}
+  .btn.sm{padding:4px 8px;font-size:12px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{padding:6px 4px;border-bottom:1px solid var(--line);text-align:center}
+  th{font-size:12px;color:#666}
+  td.l{text-align:left}
+  tr.award td{background:#fff8e1}
+  .badge{display:inline-block;padding:1px 6px;border-radius:10px;font-size:11px;background:var(--gold);color:#fff;white-space:nowrap}
+  .badge.b{background:#8e24aa}
+  .badge.p{background:#9e9e9e}
+  .warn{color:var(--warn);font-size:13px;margin:4px 0}
+  .awardbox{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:15px}
+  .awardbox .k{font-weight:bold}
+  .tie{border:2px solid var(--warn)}
+  .tie li{display:flex;justify-content:space-between;align-items:center;padding:4px 0}
+  .tie ol{padding-left:22px;margin:6px 0}
+  .flex{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .mem{display:flex;gap:6px;align-items:center;padding:4px 0;border-top:1px solid var(--line)}
+  .mem input{flex:1}
+  #qr{display:flex;justify-content:center;padding:10px}
+  .banner{background:#fff3e0;border:1px solid #ffb74d;padding:8px;border-radius:8px;font-size:13px;margin-bottom:10px}
+  #lock{max-width:360px;margin:60px auto;padding:0 16px;text-align:center}
+  #lock .card{padding:20px}
+  #lock .btn{width:100%;margin-top:10px;padding:12px;font-size:16px}
+  #lockErr{color:#c62828;font-size:14px;min-height:20px;margin-top:8px}
+  .hide{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- パスワード入力画面 -->
+<div id="lock">
+  <div class="card">
+    <h2 style="margin:0 0 6px">🎳 スコア集計</h2>
+    <div class="muted" style="margin-bottom:12px">パスワードを入力してください</div>
+    <form id="lockForm" autocomplete="off">
+      <input type="password" id="pw" placeholder="パスワード" autocapitalize="off" autocorrect="off">
+      <button class="btn" id="pwBtn" type="submit">開く</button>
+    </form>
+    <div id="lockErr"></div>
+  </div>
+</div>
+
+<!-- アプリ本体 -->
+<div id="app" class="hide">
+<div id="top">
+<header>
+  <div><h1>🎳 第3回ボウリング大会 スコア集計</h1><div id="conn">接続中…</div></div>
+  <button id="lockBtn" onclick="logout()">ロック</button>
+</header>
+<nav>
+  <button data-tab="input" class="on">スコア入力</button>
+  <button data-tab="result">結果</button>
+  <button data-tab="edit">チーム編集</button>
+  <button data-tab="share">共有</button>
+</nav></div>
+<main id="main"></main>
+</div>
+
+<!-- Firebase (リアルタイム共有用) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+/* =====================================================================
+   ★ 設定：Firebaseの設定をここに貼り付けてください（手順書参照）
+   apiKey が空のままだと「ローカルモード」（この端末だけで動作）になります。
+   ===================================================================== */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCtEoIBBlVXvSCBtN1CFuuPk2WhdZgWYKs",
+  authDomain: "bowling3-1b455.firebaseapp.com",
+  databaseURL: "https://bowling3-1b455-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "bowling3-1b455",
+};
+
+/* ---------- パスワード保護 ----------
+   ・パスワードそのものはこのファイルに書いていません。
+   ・入力されたパスワードから「暗号鍵」と「ルーム名（48桁の英数字）」を計算します。
+   ・デフォルトのチーム割（氏名）は暗号化して埋め込んであり、正しいパスワードでのみ復号できます。
+   ・正しいパスワードを知らない人は、ルーム名も氏名も分かりません。                      */
+const PBKDF2_ITER = 300000;
+const SALT_KEY = "bowl3-key-v1", SALT_ROOM = "bowl3-room-v1";
+const ENC_TEAMS = {"iv":"wqLn+FDnV6ynyQRS","ct":"2vOx/hAo0XQLZPUxuZj5QuygwMYHiA9H6Ihz40T0zGBG4FhQV1eioeeV3MmFCB6qP1vNkTJjZ+sTIgO+lmMZPTSWYWFHhWqxG5Ep34ZuzX+XxW84kBJuVVe3T9xgba3SxwQ+B4PXdM3sxnkvg+jI4W58UvBD3ErdbkQ4BwNnv7nX6p6MMcdCIj5T/w6wvgEBngydHcddHJIYqwSTj40XvSDG4ace3gjnAxqMMn9JMB7oijPujM0540noylMq9XmPMR0K18aPstJYHccE+NlZh9AerlzNKLFDtKIzHTYejGPku2C0T+HB0N0SNGF830eXqefq43oXDOznX4JnC4oHEnAJqNwmMmhkOmhdexBTEqFPmuji/I81EhntgkHBt4Dx+xpY1DFGbjwxkApSGP7n5SPmmYuht4sfsmfRphxy"};
+const SESSION_KEY = "bowl3_session_v1";
+
+const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function unlock(pw){
+  const te = new TextEncoder();
+  const base = await crypto.subtle.importKey("raw", te.encode(pw), "PBKDF2", false, ["deriveBits","deriveKey"]);
+  const key = await crypto.subtle.deriveKey({name:"PBKDF2", salt:te.encode(SALT_KEY), iterations:PBKDF2_ITER, hash:"SHA-256"},
+                                            base, {name:"AES-GCM", length:256}, false, ["decrypt"]);
+  let teams;
+  try{
+    const pt = await crypto.subtle.decrypt({name:"AES-GCM", iv:b64(ENC_TEAMS.iv)}, key, b64(ENC_TEAMS.ct));
+    teams = JSON.parse(new TextDecoder().decode(pt));
+  }catch(e){ return null; }                     // パスワード誤り
+  const bits = await crypto.subtle.deriveBits({name:"PBKDF2", salt:te.encode(SALT_ROOM), iterations:PBKDF2_ITER, hash:"SHA-256"}, base, 192);
+  const room = [...new Uint8Array(bits)].map(x=>x.toString(16).padStart(2,"0")).join("");
+  return {room, teams};
+}
+
+const TEAM_SIZE = 3;          // ルール：1チーム3人制
+const MAX_SCORE = 300;
+let DEFAULT_TEAMS = [];
+
+function buildDefaultState(){
+  const s = {teams:{}, players:{}, tieOrders:{}, createdAt: Date.now()};
+  const circled = "①②③④⑤⑥⑦⑧⑨⑩";
+  DEFAULT_TEAMS.forEach((mem, i)=>{
+    const tid = "t"+String(i+1).padStart(2,"0");
+    s.teams[tid] = {name: "チーム"+(circled[i]||(i+1)), order: i+1};
+    mem.forEach((nm, j)=>{
+      const pid = tid+"p"+(j+1);
+      s.players[pid] = {name:nm, teamId:tid, order:j+1, absent:false};
+    });
+  });
+  return s;
+}
+
+/* =====================================================================
+   順位計算ロジック（第3回ボウリング大会ルール.pdf に準拠）
+   ===================================================================== */
+const Logic = (() => {
+  // 個人戦：2ゲームのうち高い方が得点。同点 → もう一方のゲームが高い方。それでも同点 → じゃんけん
+  function individualEntries(state){
+    const out = [], pending = [];
+    for (const [id,p] of Object.entries(state.players||{})){
+      if (p.absent) continue;
+      const g1 = num(p.g1), g2 = num(p.g2);
+      if (g1==null || g2==null){ pending.push({id, name:p.name}); continue; }
+      const best = Math.max(g1,g2), other = Math.min(g1,g2);
+      out.push({id, name:p.name, teamId:p.teamId, g1, g2, best, other, sortKey:[best, other]});
+    }
+    return {entries:out, pending};
+  }
+  // チーム戦：2ゲーム目の合計。欠席で人数減 → 合計÷参加人数×3 を四捨五入。同点 → 代表者じゃんけん
+  function teamEntries(state){
+    const out = [], pending = [], invalid = [];
+    for (const [tid,t] of Object.entries(state.teams||{})){
+      const members = Object.entries(state.players||{}).filter(([,p])=>p.teamId===tid);
+      const part = members.filter(([,p])=>!p.absent);
+      const n = part.length;
+      if (n===0){ invalid.push({id:tid, name:t.name, reason:"参加者0人"}); continue; }
+      if (members.length > TEAM_SIZE){ invalid.push({id:tid, name:t.name, reason:"登録4人以上（ルールは3人制）"}); continue; }
+      const missing = part.filter(([,p])=>num(p.g2)==null);
+      if (missing.length){ pending.push({id:tid, name:t.name, missing:missing.map(([,p])=>p.name)}); continue; }
+      const sum = part.reduce((a,[,p])=>a+num(p.g2),0);
+      const score = teamScore(sum, n);
+      out.push({id:tid, name:t.name, sum, n, score, converted:n<TEAM_SIZE, sortKey:[score]});
+    }
+    return {entries:out, pending, invalid};
+  }
+  function teamScore(sum, n){
+    if (n === TEAM_SIZE) return sum;
+    const num3 = sum * TEAM_SIZE;               // 合計÷参加人数×3 を四捨五入（整数演算）
+    const q = Math.floor(num3 / n), r = num3 - q*n;
+    return (2*r >= n) ? q+1 : q;
+  }
+  function rank(entries, prefix, tieOrders){
+    const sorted = entries.slice().sort((a,b)=>{
+      for (let i=0;i<a.sortKey.length;i++){ if (a.sortKey[i]!==b.sortKey[i]) return b.sortKey[i]-a.sortKey[i]; }
+      return a.name.localeCompare(b.name,"ja");
+    });
+    const groups = [];
+    for (const e of sorted){
+      const last = groups[groups.length-1];
+      if (last && last.sortKey.join("-")===e.sortKey.join("-")) last.items.push(e);
+      else groups.push({sortKey:e.sortKey, items:[e]});
+    }
+    const result = []; let pos = 1;
+    for (const g of groups){
+      const ids = g.items.map(x=>x.id).sort();
+      g.key = prefix+":"+g.sortKey.join("-")+":"+ids.join(",");
+      g.start = pos; g.end = pos + g.items.length - 1;
+      g.tied = g.items.length > 1;
+      g.resolved = !g.tied;
+      if (g.tied){
+        const ord = tieOrders && tieOrders[safeKey(g.key)];
+        if (Array.isArray(ord) && ord.length===ids.length && ord.slice().sort().join(",")===ids.join(",")){
+          g.items.sort((a,b)=>ord.indexOf(a.id)-ord.indexOf(b.id));
+          g.resolved = true;
+        }
+      }
+      g.items.forEach((e,i)=>{ e.group = g; e.pos = g.resolved ? pos+i : g.start; result.push(e); });
+      pos += g.items.length;
+    }
+    return {list:result, groups};
+  }
+  // 表彰：1位・2位・3位・ブービー賞（下から2番目）
+  function awards(ranked){
+    const N = ranked.list.length;
+    const defs = [[1,"1位"],[2,"2位"],[3,"3位"]];
+    if (N >= 2) defs.push([N-1,"ブービー賞"]);
+    const res = [], needTie = new Map();
+    for (const [p,label] of defs){
+      if (p > N) continue;
+      const e = ranked.list[p-1];
+      if (e.group.resolved) res.push({label, pos:p, winner:e});
+      else { res.push({label, pos:p, tie:e.group}); needTie.set(e.group.key, e.group); }
+    }
+    return {list:res, needTie:[...needTie.values()], overlap: N>=2 && N-1<=3, N};
+  }
+  function num(v){ return (v===null||v===undefined||v==="") ? null : Number(v); }
+  function safeKey(k){ return k.replace(/[.#$\[\]\/]/g,"_"); }
+  return {individualEntries, teamEntries, teamScore, rank, awards, safeKey, num};
+})();
+
+/* =====================================================================
+   データストア（Firebase / ローカル）
+   ===================================================================== */
+let ROOM = null, state = null, store = null;
+
+function setConn(t, ok){ const c=document.getElementById("conn"); c.textContent=t; c.style.color= ok? "#c8e6c9":"#ffe0b2"; }
+
+function startApp(sess){
+  ROOM = sess.room; DEFAULT_TEAMS = sess.teams;
+  document.getElementById("lock").classList.add("hide");
+  document.getElementById("app").classList.remove("hide");
+  if (FIREBASE_CONFIG.apiKey && window.firebase){
+    if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+    const db = firebase.database();
+    const root = db.ref("rooms/"+ROOM);
+    store = {
+      set:(path,val)=>root.child(path).set(val===undefined?null:val),
+      update:(obj)=>root.update(obj),
+      resetAll:()=>root.set(buildDefaultState()),
+    };
+    root.transaction(cur => cur ? undefined : buildDefaultState());   // 初回のみデフォルト作成
+    root.on("value", snap => { if (snap.val()){ state = snap.val(); render(); } });
+    db.ref(".info/connected").on("value", s => setConn(s.val() ? "● オンライン共有中" : "○ 再接続中…（入力は復帰後に同期）", s.val()));
+  } else {
+    const KEY = "bowling_local_"+ROOM;
+    const ch = window.BroadcastChannel ? new BroadcastChannel(KEY) : null;
+    const load = () => { try{ return JSON.parse(localStorage.getItem(KEY)); }catch(e){ return null; } };
+    const save = () => { localStorage.setItem(KEY, JSON.stringify(state)); ch && ch.postMessage(1); render(); };
+    const setPath = (path,val) => {
+      const ks = path.split("/"); let o = state;
+      for (let i=0;i<ks.length-1;i++){ o[ks[i]] = o[ks[i]] || {}; o = o[ks[i]]; }
+      if (val===null || val===undefined) delete o[ks[ks.length-1]]; else o[ks[ks.length-1]] = val;
+    };
+    store = {
+      set:(p,v)=>{ setPath(p,v); save(); },
+      update:(obj)=>{ for (const [p,v] of Object.entries(obj)) setPath(p,v); save(); },
+      resetAll:()=>{ state = buildDefaultState(); save(); },
+    };
+    state = load() || buildDefaultState();
+    if (ch) ch.onmessage = () => { state = load() || state; render(); };
+    setConn("⚠ ローカルモード（共有されません／Firebase未設定）", false);
+    setTimeout(render,0);
+  }
+}
+
+function logout(){
+  if (!confirm("この端末をロックしますか？（再度パスワード入力が必要になります）")) return;
+  localStorage.removeItem(SESSION_KEY); location.reload();
+}
+
+// 起動：この端末で一度解錠済みならそのまま開く
+document.getElementById("lockForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const btn = document.getElementById("pwBtn"), err = document.getElementById("lockErr");
+  const pw = document.getElementById("pw").value;
+  if (!pw) return;
+  if (!window.crypto || !crypto.subtle){ err.textContent = "このブラウザでは利用できません（https のURLで開いてください）"; return; }
+  btn.disabled = true; btn.textContent = "確認中…"; err.textContent = "";
+  const sess = await unlock(pw);
+  btn.disabled = false; btn.textContent = "開く";
+  if (!sess){ err.textContent = "パスワードが違います"; document.getElementById("pw").value=""; return; }
+  localStorage.setItem(SESSION_KEY, JSON.stringify(sess));
+  startApp(sess);
+});
+(()=>{ try{ const s = JSON.parse(localStorage.getItem(SESSION_KEY)); if (s && s.room && s.teams) startApp(s); }catch(e){} })();
+
+/* =====================================================================
+   画面
+   ===================================================================== */
+let tab = "input";
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
+  tab=b.dataset.tab; document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("on",x===b)); render(true);
+});
+const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const teamsSorted = () => Object.entries(state.teams||{}).sort((a,b)=>(a[1].order||0)-(b[1].order||0));
+const membersOf = tid => Object.entries(state.players||{}).filter(([,p])=>p.teamId===tid).sort((a,b)=>(a[1].order||0)-(b[1].order||0));
+const newId = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+
+let lastSig = "";
+function structSig(){
+  return tab+"|"+JSON.stringify([state.teams, Object.entries(state.players||{}).map(([id,p])=>[id,p.name,p.teamId,p.order,!!p.absent])]);
+}
+
+function render(force){
+  if (!state) return;
+  const main = document.getElementById("main");
+  const sig = structSig();
+  if (!force && tab==="input" && sig===lastSig){
+    main.querySelectorAll("input[data-p]").forEach(inp=>{
+      if (inp === document.activeElement) return;
+      const v = state.players[inp.dataset.p]?.[inp.dataset.g];
+      inp.value = (v==null) ? "" : v; inp.classList.remove("bad");
+    });
+    updateProgress();
+    return;
+  }
+  const active = document.activeElement;
+  const focusKey = active && active.dataset && active.dataset.p ? active.dataset.p+"|"+active.dataset.g : null;
+  const focusVal = focusKey ? active.value : null;
+  lastSig = sig;
+  if (tab==="input") main.innerHTML = viewInput();
+  if (tab==="result") main.innerHTML = viewResult();
+  if (tab==="edit") main.innerHTML = viewEdit();
+  if (tab==="share") { main.innerHTML = viewShare(); drawQR(); }
+  if (focusKey){
+    const [p,g] = focusKey.split("|");
+    const el = main.querySelector(`input[data-p="${p}"][data-g="${g}"]`);
+    if (el){ el.value = focusVal; el.focus(); }
+  }
+  if (tab==="input") updateProgress();
+}
+
+/* ---- スコア入力 ---- */
+function viewInput(){
+  let h = `<div class="card"><div id="prog" class="muted"></div><div class="muted">数字を入力すると自動で保存・共有されます（0〜300）。欠席者は「欠席」をタップ。</div></div>`;
+  for (const [tid,t] of teamsSorted()){
+    h += `<div class="card"><h3>${esc(t.name)}</h3>
+      <div class="row head"><div>名前</div><div>1G</div><div>2G</div><div></div></div>`;
+    for (const [pid,p] of membersOf(tid)){
+      h += `<div class="row ${p.absent?"absent":""}">
+        <div class="nm">${esc(p.name)}</div>
+        <input type="number" inputmode="numeric" min="0" max="300" data-p="${pid}" data-g="g1" value="${p.g1??""}" ${p.absent?"disabled":""}>
+        <input type="number" inputmode="numeric" min="0" max="300" data-p="${pid}" data-g="g2" value="${p.g2??""}" ${p.absent?"disabled":""}>
+        <button class="abs ${p.absent?"on":""}" onclick="toggleAbsent('${pid}')">${p.absent?"欠席中":"欠席"}</button>
+      </div>`;
+    }
+    if (!membersOf(tid).length) h += `<div class="muted">メンバーがいません（チーム編集で追加）</div>`;
+    h += `</div>`;
+  }
+  return h;
+}
+function updateProgress(){
+  const el = document.getElementById("prog"); if (!el) return;
+  const ps = Object.values(state.players||{}).filter(p=>!p.absent);
+  const done = ps.filter(p=>p.g1!=null && p.g2!=null).length;
+  const abs = Object.values(state.players||{}).filter(p=>p.absent).length;
+  el.innerHTML = `入力完了 <b>${done}</b> / ${ps.length} 人（欠席 ${abs} 人）`;
+}
+const timers = {};
+document.addEventListener("input", e=>{
+  const inp = e.target; if (!inp.dataset || !inp.dataset.p) return;
+  const k = inp.dataset.p+inp.dataset.g; clearTimeout(timers[k]);
+  timers[k] = setTimeout(()=>saveScore(inp), 700);
+});
+document.addEventListener("change", e=>{ const inp=e.target; if (inp.dataset && inp.dataset.p){ clearTimeout(timers[inp.dataset.p+inp.dataset.g]); saveScore(inp);} });
+function saveScore(inp){
+  const raw = inp.value.trim();
+  if (raw===""){ inp.classList.remove("bad"); store.set(`players/${inp.dataset.p}/${inp.dataset.g}`, null); return; }
+  const v = Number(raw);
+  if (!Number.isInteger(v) || v<0 || v>MAX_SCORE){ inp.classList.add("bad"); return; }
+  inp.classList.remove("bad");
+  store.set(`players/${inp.dataset.p}/${inp.dataset.g}`, v);
+}
+function toggleAbsent(pid){
+  const p = state.players[pid];
+  if (!p.absent && (p.g1!=null || p.g2!=null) && !confirm(`${p.name} さんを欠席にしますか？（入力済みスコアは集計から除外されます）`)) return;
+  store.set(`players/${pid}/absent`, !p.absent);
+}
+
+/* ---- 結果 ---- */
+function viewResult(){
+  const tie = state.tieOrders || {};
+  const ind = Logic.individualEntries(state);
+  const tm = Logic.teamEntries(state);
+  const ir = Logic.rank(ind.entries, "i", tie);
+  const tr = Logic.rank(tm.entries, "t", tie);
+  const ia = Logic.awards(ir), ta = Logic.awards(tr);
+  const teamName = id => state.teams[id]?.name || "";
+  let h = "";
+  if (ind.pending.length || tm.pending.length)
+    h += `<div class="banner">⏳ <b>暫定結果</b>：未入力があります。全員入力後に確定します。<br>
+      個人未入力：${ind.pending.map(x=>esc(x.name)).join("、")||"なし"}<br>
+      チーム（2G未入力あり）：${tm.pending.map(x=>esc(x.name)).join("、")||"なし"}</div>`;
+
+  h += `<div class="card"><h3>🏆 個人賞</h3>${awardHtml(ia, e=>`${esc(e.name)}（${esc(teamName(e.teamId))}）${e.best}点`)}</div>`;
+  h += `<div class="card"><h3>🏆 チーム賞</h3>${awardHtml(ta, e=>`${esc(e.name)} ${e.score}点`)}</div>`;
+
+  const ties = [...ia.needTie.map(g=>["個人",g]), ...ta.needTie.map(g=>["チーム",g])];
+  for (const [kind,g] of ties){
+    const pr = kind==="個人" ? `高い方 ${g.sortKey[0]}点・もう一方 ${g.sortKey[1]}点で同点` : `${g.sortKey[0]}点で同点（各チーム代表者によるじゃんけん）`;
+    h += `<div class="card tie"><h3>✊ じゃんけんで順位決定（${kind} ${g.start}〜${g.end}位）</h3>
+      <div class="muted">${pr}。じゃんけんの結果の順（勝った順）に並べて「確定」を押してください。</div>
+      <ol data-tiekey="${Logic.safeKey(g.key)}">${g.items.map(e=>`<li data-id="${e.id}"><span>${esc(e.name)}</span>
+        <span><button class="btn sub sm" onclick="mv(this,-1)">▲</button> <button class="btn sub sm" onclick="mv(this,1)">▼</button></span></li>`).join("")}</ol>
+      <button class="btn" onclick="fixTie('${Logic.safeKey(g.key)}')">この順で確定</button></div>`;
+  }
+  const resolvedTies = [...ir.groups, ...tr.groups].filter(g=>g.tied && g.resolved);
+  if (resolvedTies.length){
+    h += `<div class="card"><h3>じゃんけん確定済み</h3>${resolvedTies.map(g=>`<div class="flex"><span>${g.start}〜${g.end}位：${g.items.map(e=>esc(e.name)).join(" ＞ ")}</span>
+      <button class="btn danger sm" onclick="clearTie('${Logic.safeKey(g.key)}')">やり直す</button></div>`).join("")}</div>`;
+  }
+
+  const iAward = awardMap(ia);
+  h += `<div class="card"><h3>個人順位（${ir.list.length}人）</h3><table><tr><th>順位</th><th>名前</th><th>1G</th><th>2G</th><th>得点</th></tr>`;
+  for (const e of ir.list){
+    const aw = iAward[e.id];
+    h += `<tr class="${aw?"award":""}"><td>${posLabel(e)}</td><td class="l">${esc(e.name)} ${aw?badge(aw):""}<div class="muted">${esc(teamName(e.teamId))}</div></td>
+      <td>${e.g1}</td><td>${e.g2}</td><td><b>${e.best}</b></td></tr>`;
+  }
+  h += `</table><div class="muted">得点＝2ゲームのうち高い方。同点はもう一方のゲームが高い方が上位、それでも同点はじゃんけん。</div></div>`;
+
+  const tAward = awardMap(ta);
+  h += `<div class="card"><h3>チーム順位（${tr.list.length}チーム）</h3><table><tr><th>順位</th><th>チーム</th><th>2G合計</th><th>参加</th><th>得点</th></tr>`;
+  for (const e of tr.list){
+    const aw = tAward[e.id];
+    h += `<tr class="${aw?"award":""}"><td>${posLabel(e)}</td><td class="l">${esc(e.name)} ${aw?badge(aw):""}
+      ${e.converted?`<div class="muted">${e.sum}÷${e.n}×3＝${(e.sum*3/e.n).toFixed(2)}→${e.score}</div>`:""}</td>
+      <td>${e.sum}</td><td>${e.n}人</td><td><b>${e.score}</b></td></tr>`;
+  }
+  h += `</table><div class="muted">得点＝2ゲーム目の合計。欠席で人数が減ったチームは「合計÷参加人数×3」を四捨五入。</div>`;
+  for (const x of tm.invalid) h += `<div class="warn">⚠ ${esc(x.name)}：${x.reason}のため順位対象外</div>`;
+  h += `</div>`;
+  return h;
+}
+function awardHtml(a, fmt){
+  if (!a.list.length) return `<div class="muted">まだ集計対象がありません</div>`;
+  let h = `<div class="awardbox">`;
+  for (const x of a.list){
+    h += `<div class="k">${x.label}</div><div>${x.winner ? fmt(x.winner) : `<span class="warn">じゃんけん待ち：${x.tie.items.map(e=>esc(e.name)).join("・")}</span>`}</div>`;
+  }
+  h += `</div>`;
+  if (a.overlap) h += `<div class="warn">⚠ 対象数が${a.N}のため、ブービー賞（下から2番目）が上位賞と同じ順位になっています。</div>`;
+  return h;
+}
+function awardMap(a){ const m={}; for (const x of a.list) if (x.winner) m[x.winner.id]=(m[x.winner.id]?m[x.winner.id]+"・":"")+x.label; return m; }
+function badge(t){ return `<span class="badge ${t.includes("ブービー")?"b":""}">${t}</span>`; }
+function posLabel(e){ return e.group.resolved ? e.pos : `${e.group.start}<span class="badge p">同点</span>`; }
+function mv(btn, d){
+  const li = btn.closest("li"), ol = li.parentNode;
+  if (d<0 && li.previousElementSibling) ol.insertBefore(li, li.previousElementSibling);
+  if (d>0 && li.nextElementSibling) ol.insertBefore(li.nextElementSibling, li);
+}
+function fixTie(k){
+  const ids = [...document.querySelectorAll(`ol[data-tiekey="${k}"] li`)].map(li=>li.dataset.id);
+  store.set(`tieOrders/${k}`, ids);
+}
+function clearTie(k){ if (confirm("じゃんけん結果を取り消しますか？")) store.set(`tieOrders/${k}`, null); }
+
+/* ---- チーム編集 ---- */
+function viewEdit(){
+  let h = `<div class="card"><div class="muted">名前は入力欄から離れると保存されます。1チームは最大3人（ルール：3人制）。欠席は「スコア入力」画面で設定します。</div></div>`;
+  for (const [tid,t] of teamsSorted()){
+    const ms = membersOf(tid);
+    h += `<div class="card"><h3><input type="text" value="${esc(t.name)}" onchange="store.set('teams/${tid}/name', this.value.trim()||'無名チーム')"></h3>`;
+    for (const [pid,p] of ms){
+      h += `<div class="mem"><input type="text" value="${esc(p.name)}" onchange="store.set('players/${pid}/name', this.value.trim()||'無名')">
+        <select onchange="moveMember('${pid}', this.value)">${teamsSorted().map(([id,tt])=>`<option value="${id}" ${id===tid?"selected":""}>${esc(tt.name)}</option>`).join("")}</select>
+        <button class="btn danger sm" onclick="delMember('${pid}')">削除</button></div>`;
+    }
+    h += `<div class="flex" style="margin-top:6px">
+      ${ms.length<TEAM_SIZE ? `<input type="text" id="new_${tid}" placeholder="追加する名前" style="flex:1"><button class="btn sm" onclick="addMember('${tid}')">メンバー追加</button>` : `<span class="muted">3人登録済み</span>`}
+      <button class="btn danger sm" onclick="delTeam('${tid}')">チーム削除</button></div></div>`;
+  }
+  h += `<div class="card flex"><button class="btn" onclick="addTeam()">＋ チームを追加</button>
+    <button class="btn danger" onclick="resetAll()">初期状態に戻す</button></div>`;
+  return h;
+}
+function addMember(tid){
+  const el = document.getElementById("new_"+tid); const nm = (el.value||"").trim();
+  if (!nm) return alert("名前を入力してください");
+  if (membersOf(tid).length >= TEAM_SIZE) return alert("1チーム3人までです");
+  const order = Math.max(0,...membersOf(tid).map(([,p])=>p.order||0))+1;
+  store.set("players/"+newId("p"), {name:nm, teamId:tid, order, absent:false});
+}
+function moveMember(pid, tid){
+  if (membersOf(tid).length >= TEAM_SIZE){ alert("移動先のチームは3人登録済みです"); render(true); return; }
+  const order = Math.max(0,...membersOf(tid).map(([,p])=>p.order||0))+1;
+  store.update({[`players/${pid}/teamId`]:tid, [`players/${pid}/order`]:order});
+}
+function delMember(pid){
+  const p = state.players[pid];
+  if (confirm(`${p.name} さんを削除しますか？（当日欠席の場合は削除ではなく「欠席」にしてください）`)) store.set("players/"+pid, null);
+}
+function addTeam(){
+  const name = prompt("チーム名", "チーム"+(Object.keys(state.teams||{}).length+1)); if (!name) return;
+  const order = Math.max(0,...Object.values(state.teams||{}).map(t=>t.order||0))+1;
+  store.set("teams/"+newId("t"), {name:name.trim(), order});
+}
+function delTeam(tid){
+  const ms = membersOf(tid);
+  if (!confirm(`${state.teams[tid].name} を削除しますか？` + (ms.length?`（メンバー${ms.length}人も削除されます）`:""))) return;
+  const upd = {["teams/"+tid]:null}; ms.forEach(([pid])=>upd["players/"+pid]=null);
+  store.update(upd);
+}
+function resetAll(){
+  if (prompt("全スコア・編集内容を消去してチーム割PDFの初期状態に戻します。実行する場合は「リセット」と入力") === "リセット") store.resetAll();
+}
+
+/* ---- 共有 ---- */
+const SHARE_URL = location.origin + location.pathname;     // パスワード・ルーム名は含めない
+function viewShare(){
+  return `<div class="card"><h3>このURLを共有</h3>
+    <div class="muted">URLを開いてパスワードを入力すると使えます。<b>パスワードはURLとは別に伝えてください。</b></div>
+    <input type="text" readonly value="${esc(SHARE_URL)}" onclick="this.select()">
+    <div class="flex" style="margin-top:8px"><button class="btn" onclick="shareUrl()">共有する（LINE・メール等）</button>
+    <button class="btn sub" onclick="navigator.clipboard.writeText(SHARE_URL).then(()=>alert('コピーしました'))">コピー</button></div>
+    <div id="qr"></div><div class="muted" style="text-align:center">QRコードをスマホのカメラで読み取ってください</div></div>`;
+}
+function drawQR(){ const el=document.getElementById("qr"); if (el && window.QRCode) new QRCode(el,{text:SHARE_URL,width:200,height:200}); }
+function shareUrl(){ if (navigator.share) navigator.share({title:"ボウリング大会 スコア集計", url:SHARE_URL}); else navigator.clipboard.writeText(SHARE_URL).then(()=>alert("URLをコピーしました")); }
+</script>
+</body>
+</html>
